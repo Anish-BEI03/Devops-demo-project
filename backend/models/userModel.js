@@ -1,0 +1,14 @@
+import mongoose from 'mongoose';
+
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  cartData: { type: Object, default: {} },
+  verificationCode: { type: String, default: null },
+  verificationCodeExpiry: { type: Date, default: null },
+  verificationPurpose: { type: String, enum: ['password-change', 'forgot-password'], default: null }
+}, { minimize: false });
+
+const UserModel = mongoose.model.user || mongoose.model('user', userSchema);
+export default UserModel;

@@ -1,0 +1,63 @@
+# Commands and Notes
+
+## Docker commands
+# To stop the project:
+
+# To start it again:
+
+# However, there are variations depending on what you're doing:
+
+# Command	Use Case
+docker-compose up --build	[First time OR after code changes (rebuilds images)]
+docker-compose up	[Just restarting (no code changes, faster)]
+docker-compose down	[Stop and remove containers (data in volumes persists)]
+docker-compose down -v	[Stop AND delete all data (clean slate)]
+
+# Your typical workflow:
+
+# First time: 
+docker-compose up --build 
+# Make code changes: 
+docker-compose down → docker-compose up --build
+# Just restarting: 
+docker-compose down → docker-compose up (optional --build if needed)
+# Clean restart: 
+docker-compose down -v → docker-compose up --build (wipes database)
+
+# For your teammates:
+Always use docker-compose up --build when pulling new changes to ensure images are rebuilt with latest code.
+
+## Commands
+
+// Frontend
+
+npm install
+npm install react-router-dom
+npm install axios react-hot-toast
+npm install react-hot-toast --save    (if hot-toast error appear bash this)
+cd frontend
+npm run dev
+
+// Backend
+
+npm install
+npm install express mongoose jsonwebtoken bcrypt cors dotenv body-parser multer stripe validator nodemon nodemailer
+cd backend
+npm run server
+
+// Admin Panel
+
+npm install
+npm install axios react-toastify react-router-dom
+cd admin
+npm run dev
+
+// Chat Feature
+npm install
+npm install react-router-dom
+npm install bcryptjs cloudinary cors dotenv express jsonwebtoken mongoose socket.io
+npm install nodemon
+cd client
+npm run dev
+cd server
+npm run server

@@ -1,0 +1,222 @@
+name: DevSecOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write # Allows uploading SARIF security reports to GitHub Security tab
+
+jobs:
+  # =========================================================================
+  # 1. SECRET DETECTION (Gitleaks)
+  # =========================================================================
+  secret-scan:
+    name: 🛡️ Secret Detection (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full git commit history for deep secret detection
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =========================================================================
+  # 2. DEPENDENCY VULNERABILITY AUDIT (SCA)
+  # =========================================================================
+  dependency-scan:
+    name: 📦 Software Composition Analysis (SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Audit Backend Dependencies
+        run: |
+          cd backend
+          npm audit --audit-level=high || true
+
+      - name: Audit Chat Server Dependencies
+        run: |
+          cd chat/server
+          npm audit --audit-level=high || true
+
+      - name: Audit Frontend Apps Dependencies
+        run: |
+          cd admin && npm audit --audit-level=high || true
+          cd ../frontend && npm audit --audit-level=high || true
+          cd ../chat/client && npm audit --audit-level=high || true
+
+      - name: Run Trivy Filesystem Scan (SCA)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-fs-results.sarif"
+          severity: "HIGH,CRITICAL"
+
+      - name: Upload Trivy FS Scan to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-fs-results.sarif"
+
+  # =========================================================================
+  # 3. STATIC APPLICATION SECURITY TESTING (SAST)
+  # =========================================================================
+  sast:
+    name: 🔍 Static Code Analysis (Semgrep SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep Security Rules
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/src" \
+            returntocorp/semgrep semgrep \
+            --config "p/security-audit" \
+            --config "p/owasp-top-ten" \
+            --config "p/javascript" \
+            --sarif --output /src/semgrep.sarif /src
+
+      - name: Upload Semgrep SARIF Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "semgrep.sarif"
+
+  # =========================================================================
+  # 4. AUTOMATED TESTS & CODE COVERAGE
+  # =========================================================================
+  test:
+    name: 🧪 Automated Tests & Coverage
+    needs: [secret-scan]
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: group_48
+          MONGO_INITDB_ROOT_PASSWORD: testpassword
+          MONGO_INITDB_DATABASE: citybites_test
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost/test --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Backend Tests & Coverage
+        working-directory: ./backend
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test_secret_key_12345
+          STRIPE_SECRET_KEY: sk_test_dummy
+          MONGO_URI: mongodb://group_48:testpassword@localhost:27017/citybites_test?authSource=admin
+          NODE_OPTIONS: --experimental-vm-modules
+
+      - name: Run Chat Server Tests
+        working-directory: ./chat/server
+        run: |
+          npm ci
+          npm test || true
+
+      - name: Run Admin UI Tests
+        working-directory: ./admin
+        run: |
+          npm ci
+          npm test -- --watchAll=false || true
+
+      - name: Run Customer Frontend Tests
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm test -- --watchAll=false || true
+
+      - name: Run Chat Client Tests
+        working-directory: ./chat/client
+        run: |
+          npm ci
+          npm test -- --watchAll=false || true
+
+  # =========================================================================
+  # 5. DOCKERFILE LINTING & MULTI-CONTAINER SECURITY SCAN
+  # =========================================================================
+  container-security:
+    name: 🐳 Container Lint & Trivy Image Scan
+    needs: [test]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: backend
+            context: ./backend
+          - name: chat-server
+            context: ./chat/server
+          - name: admin
+            context: ./admin
+          - name: frontend
+            context: ./frontend
+          - name: chat-client
+            context: ./chat/client
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Hadolint (Dockerfile Linter)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.service.context }}/Dockerfile
+          failure-threshold: warning
+
+      - name: Build Docker Image
+        run: |
+          docker build -t local/${{ matrix.service.name }}:test ${{ matrix.service.context }}
+
+      - name: Trivy Container Image Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "local/${{ matrix.service.name }}:test"
+          format: "sarif"
+          output: "trivy-image-${{ matrix.service.name }}.sarif"
+          severity: "HIGH,CRITICAL"
+
+      - name: Upload Trivy Container Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-image-${{ matrix.service.name }}.sarif"

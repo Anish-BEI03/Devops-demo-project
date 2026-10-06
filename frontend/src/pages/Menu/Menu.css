@@ -1,0 +1,10 @@
+.menu-page {
+  margin: 0 auto;
+  padding: 0 30px;
+}
+
+@media (max-width: 768px) {
+  .menu-page {
+    padding: 0 15px;
+  }
+}

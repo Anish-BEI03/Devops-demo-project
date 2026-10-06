@@ -1,0 +1,116 @@
+.explore-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.explore-menu h1 {
+  color: var(--primary-text);
+  font-weight: 500;
+}
+
+.explore-menu-text {
+  max-width: 60%;
+  color: var(--secondary-text);
+}
+
+.explore-menu-list {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 30px;
+  text-align: center;
+  margin: 20px 0px;
+  overflow-x: scroll;
+}
+
+.explore-menu-list::-webkit-scrollbar {
+  /* Removing scroll bar and enable touch sliding */
+  display: none;
+}
+
+.explore-menu-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.explore-menu-list-item img {
+  width: 7.5vw;
+  min-width: 80px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  border: 4px solid transparent;
+}
+
+.explore-menu-list-item img:hover {
+  transform: scale(1.15) translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.explore-menu-list-item p {
+  margin-top: 10px;
+  color: var(--secondary-text);
+  font-size: max(1.4vw, 16px);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.explore-menu-list-item:hover p {
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.explore-menu hr {
+  margin: 10px 0px;
+  height: 2px;
+  background-color: var(--border-color);
+  border: none;
+}
+
+.explore-menu-list-item .active {
+  border: 4px solid var(--accent-color);
+  padding: 2px;
+  transform: scale(1.1) translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.explore-menu-list-item.active p {
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+@media (max-width:1050px) {
+  .explore-menu-text {
+    max-width: 100%;
+    font-size: 14px;
+  }
+
+  .explore-menu-list-item img:hover {
+    transform: scale(1.12) translateY(-3px);
+  }
+}
+
+@media (max-width:750px) {
+  .explore-menu-list-item img {
+    width: 60px;
+    min-width: 60px;
+  }
+
+  .explore-menu-list-item p {
+    font-size: 14px;
+  }
+
+  .explore-menu-list-item img:hover {
+    transform: scale(1.1) translateY(-2px);
+  }
+
+  .explore-menu-list-item .active {
+    transform: scale(1.08) translateY(-2px);
+  }
+}

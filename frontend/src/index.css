@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+:root {
+  /* Light Mode Colors */
+  --primary-bg: #ffffff;
+  --primary-text: #333333;
+  --secondary-bg: #f9f9f9;
+  --secondary-text: #49557e;
+  --border-color: #e0e0e0;
+  --header-bg: #fde4e4;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #49557e;
+  --accent-color: #ff7675;
+  --accent-hover: #fff4f2;
+  --footer-bg: #323232;
+  --footer-text: #e0e0e0;
+  --highlight-bg: #fffbf0;
+}
+
+body.dark-mode {
+  /* Dark Mode Colors */
+  --primary-bg: #1a1a1a;
+  --primary-text: #e0e0e0;
+  --secondary-bg: #2d2d2d;
+  --secondary-text: #b0b0b0;
+  --border-color: #404040;
+  --header-bg: #2d1a1a;
+  --card-bg: #252525;
+  --input-bg: #333333;
+  --input-border: #b0b0b0;
+  --accent-color: #ff9999;
+  --accent-hover: #3d2525;
+  --footer-bg: #1a1a1a;
+  --footer-text: #b0b0b0;
+  --highlight-bg: #2d2420;
+}
+
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  font-family: Outfit;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.app {
+  width: 80%;
+  margin: auto;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
