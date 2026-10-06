@@ -102,11 +102,50 @@ jobs:
           sarif_file: "semgrep.sarif"
 
   # =========================================================================
-  # 4. AUTOMATED TESTS & CODE COVERAGE
+  # 4. CODE QUALITY & STATIC CODE ANALYSIS (Linting & Standards)
+  # =========================================================================
+  code-quality:
+    name: 🎨 Code Quality Analysis (ESLint & Standards)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Code Quality - Backend Linter & Syntax
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run lint
+
+      - name: Code Quality - Admin UI (ESLint)
+        working-directory: ./admin
+        run: |
+          npm ci
+          npm run lint || true
+
+      - name: Code Quality - Customer Frontend (ESLint)
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run lint || true
+
+      - name: Code Quality - Chat Client (ESLint)
+        working-directory: ./chat/client
+        run: |
+          npm ci
+          npm run lint || true
+
+  # =========================================================================
+  # 5. AUTOMATED TESTS & CODE COVERAGE
   # =========================================================================
   test:
     name: 🧪 Automated Tests & Coverage
-    needs: [secret-scan]
+    needs: [secret-scan, code-quality]
     runs-on: ubuntu-latest
 
     services:
@@ -174,7 +213,7 @@ jobs:
           npm test -- --watchAll=false || true
 
   # =========================================================================
-  # 5. DOCKERFILE LINTING & MULTI-CONTAINER SECURITY SCAN
+  # 6. DOCKERFILE LINTING & MULTI-CONTAINER SECURITY SCAN
   # =========================================================================
   container-security:
     name: 🐳 Container Lint & Trivy Image Scan

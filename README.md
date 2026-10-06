@@ -118,4 +118,3 @@ Delivered a cost-effective and well-integrated CI solution for testing and secre
 ### 📌 Conclusion
 
 CityBites successfully demonstrates a scalable, real-time, full-stack food delivery platform that integrates modern web technologies, secure payment processing, and strong DevOps practices. The project highlights both the strengths and practical limitations of the chosen tools and techniques, providing a solid foundation for future enhancements and production readiness.
->>>>>>> 5172a1e (chore: add backend dependencies and terraform configuration files)
