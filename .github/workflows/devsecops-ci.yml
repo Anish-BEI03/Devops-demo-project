@@ -70,7 +70,7 @@ jobs:
           severity: "HIGH,CRITICAL"
 
       - name: Upload Trivy FS Scan to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: "trivy-fs-results.sarif"
@@ -95,7 +95,7 @@ jobs:
             --sarif --output /src/semgrep.sarif /src
 
       - name: Upload Semgrep SARIF Results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: "semgrep.sarif"
@@ -216,7 +216,7 @@ jobs:
           severity: "HIGH,CRITICAL"
 
       - name: Upload Trivy Container Results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: "trivy-image-${{ matrix.service.name }}.sarif"
