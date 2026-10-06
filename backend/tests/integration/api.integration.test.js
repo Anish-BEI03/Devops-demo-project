@@ -107,7 +107,7 @@ describe('API Integration Tests', () => {
       };
 
       // Simulate successful login
-      const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature';
+      const token = 'mock_header.mock_payload.mock_signature';
 
       expect(token).toBeDefined();
       expect(token.split('.').length).toBe(3); // JWT format check
@@ -269,7 +269,7 @@ describe('API Integration Tests', () => {
       };
 
       const jwtPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
-      const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature';
+      const token = 'mock_header.mock_payload.mock_signature';
       expect(jwtPattern.test(token)).toBe(true);
 
       // Step 3: Browse food
@@ -322,7 +322,7 @@ describe('API Integration Tests', () => {
     });
 
     it('should allow access with valid token', async () => {
-      const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature';
+      const validToken = 'mock_header.mock_payload.mock_signature';
 
       const jwtPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
       expect(jwtPattern.test(validToken)).toBe(true);

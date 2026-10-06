@@ -37,10 +37,10 @@ export const generateToken = (userId)=>{
 
 ### And make a .env file in the server folder and paste this,
 
-MONGODB_URI="mongodb+srv://group_48:291381@cluster0.ixyx7h7.mongodb.net"
+MONGODB_URI="mongodb+srv://<username>:<password>@cluster0.example.mongodb.net"
 PORT=5001
-JWT_SECRET="gs#secret"
+JWT_SECRET="your_jwt_secret_key_change_this"
 
-CLOUDINARY_CLOUD_NAME='dxhgm2i2d'
-CLOUDINARY_API_KEY='337934126569935'
-CLOUDINARY_API_SECRET='awHfNuOs1ZP0TIBedVy5xNPMtm4'
+CLOUDINARY_CLOUD_NAME='your_cloud_name'
+CLOUDINARY_API_KEY='your_api_key'
+CLOUDINARY_API_SECRET='your_api_secret'

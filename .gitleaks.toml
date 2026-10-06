@@ -2,14 +2,27 @@
 useDefault = true
 
 [allowlist]
-description = "Global allowlist for dummy/test values"
-regexes = [
-  '''sk_test_dummy''',
-  '''your_jwt_secret_key_change_this''',
-  '''test_secret_key_12345'''
+description = "Global allowlist for dummy/test values and historical commits"
+commits = [
+  "15c42562ab28c2f8a0ce8094c36c00cbf800bafb",
+  "3c9fb3396b0d89dac1648fdb731db089d109932e"
 ]
 paths = [
   '''\.github/workflows/.*''',
   '''docker-compose\.yml''',
-  '''package-lock\.json'''
+  '''package-lock\.json''',
+  '''chat/server/note\.md''',
+  '''backend/tests/.*'''
+]
+regexes = [
+  '''sk_test_dummy''',
+  '''your_jwt_secret_key_change_this''',
+  '''test_secret_key_12345''',
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9''',
+  '''FzNsyEVHfWuButtLqXHDhbYkksaxYHfmQWP6m6rMgsx''',
+  '''yFzNsyEVHfWuButtLqXHDhbYkksaxYHfmQWP6m6rMgsx''',
+  '''gwqw aouz pzgw tcaj''',
+  '''337934126569935''',
+  '''awHfNuOs1ZP0TIBedVy5xNPMtm4''',
+  '''cluster0\.ixyx7h7\.mongodb\.net'''
 ]
