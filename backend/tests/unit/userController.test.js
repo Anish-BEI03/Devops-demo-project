@@ -111,8 +111,8 @@ describe('User Controller Unit Tests', () => {
 
   describe('Token Creation', () => {
     it('should create JWT token with user ID', () => {
-      const userId = '507f1f77bcf86cd799439011';
-      const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+      const userId = env.USER_ID;
+      const mockToken = env.MOCK_JWT;
 
       mockJwt.sign.mockReturnValue(mockToken);
 
