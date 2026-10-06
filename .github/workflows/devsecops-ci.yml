@@ -61,7 +61,7 @@ jobs:
           cd ../chat/client && npm audit --audit-level=high || true
 
       - name: Run Trivy Filesystem Scan (SCA)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: "fs"
           scan-ref: "."
@@ -208,7 +208,7 @@ jobs:
           docker build -t local/${{ matrix.service.name }}:test ${{ matrix.service.context }}
 
       - name: Trivy Container Image Scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: "local/${{ matrix.service.name }}:test"
           format: "sarif"
