@@ -247,12 +247,19 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
+      - name: Quality gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
   # =========================================================================
   # 7. DOCKERFILE LINTING & MULTI-CONTAINER SECURITY SCAN
   # =========================================================================
   container-security:
     name: 🐳 Container Lint & Trivy Image Scan
-    needs: [test]
+    needs: [test, sonarqube]
     runs-on: ubuntu-latest
     strategy:
       matrix:
