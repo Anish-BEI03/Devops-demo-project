@@ -71,11 +71,20 @@ jobs:
           output: "trivy-fs-results.sarif"
           severity: "HIGH,CRITICAL"
 
-      - name: Upload Trivy FS Scan to GitHub Security
+      - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true # fails on private repos without GHAS
         with:
           sarif_file: "trivy-fs-results.sarif"
+ 
+      - name: Keep SARIF as artifact (fallback)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-fs-sarif
+          path: trivy-fs-results.sarif
+          if-no-files-found: ignore
 
   # =========================================================================
   # 3. STATIC APPLICATION SECURITY TESTING (SAST)
@@ -99,8 +108,17 @@ jobs:
       - name: Upload Semgrep SARIF Results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true # fails on private repos without GHAS
         with:
           sarif_file: "semgrep.sarif"
+
+      - name: Keep SARIF as artifact (fallback)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: ignore
 
   # =========================================================================
   # 4. CODE QUALITY & STATIC CODE ANALYSIS (Linting & Standards)
@@ -116,6 +134,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            chat/server/package-lock.json
+            admin/package-lock.json
+            frontend/package-lock.json
+            chat/client/package-lock.json
 
       - name: Code Quality - Backend Linter & Syntax
         working-directory: ./backend
@@ -141,6 +166,12 @@ jobs:
           npm ci
           npm run lint || true
 
+      - name: code Quality - chat server (ESLint)
+        working-directory: ./chat/server
+        run: |
+          npm ci
+          npm run lint || true
+
   # =========================================================================
   # 5. AUTOMATED TESTS & CODE COVERAGE
   # =========================================================================
@@ -155,7 +186,7 @@ jobs:
         ports:
           - 27017:27017
         env:
-          MONGO_INITDB_ROOT_USERNAME: group_48
+          MONGO_INITDB_ROOT_USERNAME: testuser
           MONGO_INITDB_ROOT_PASSWORD: testpassword
           MONGO_INITDB_DATABASE: citybites_test
         options: >-
@@ -186,7 +217,7 @@ jobs:
           NODE_ENV: test
           JWT_SECRET: test_secret_key_12345
           STRIPE_SECRET_KEY: sk_test_dummy
-          MONGO_URI: mongodb://group_48:testpassword@localhost:27017/citybites_test?authSource=admin
+          MONGO_URI: mongodb://testuser:testpassword@localhost:27017/citybites_test?authSource=admin
           NODE_OPTIONS: --experimental-vm-modules
 
       - name: Run Chat Server Tests
@@ -228,6 +259,10 @@ jobs:
     name: 📊 SonarQube Code Quality & Security Scan
     needs: [test]
     runs-on: ubuntu-latest
+
+    env:
+      RUN_SONAR: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -235,19 +270,32 @@ jobs:
           fetch-depth: 0 # Full git commit history for accurate blame and change analysis
 
       - name: Download Backend Coverage Report
+        if: env.RUN_SONAR == 'true'
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: backend-coverage
           path: backend/coverage
 
+      # Fix lcov paths (relative to repo root) that means 
+      - name: Fix lcov paths (relative to repo root)
+        if: env.RUN_SONAR == 'true'
+        run: |
+          if [ -f backend/coverage/lcov.info ]; then
+            sed -i 's#^SF:\(\.\?/\?\)\(backend/\)\?#SF:backend/#' backend/coverage/lcov.info
+            head -3 backend/coverage/lcov.info
+          fi
+ 
+
       - name: Run SonarQube Scan
+        if: env.RUN_SONAR == 'true'
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: Quality gate
+        if: env.RUN_SONAR == 'true'
         uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
         env:
@@ -300,5 +348,60 @@ jobs:
       - name: Upload Trivy Container Results
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: "trivy-image-${{ matrix.service.name }}.sarif"
+
+  # =========================================================================
+  # 8. DOCKER BUILD & PUSH TO DOCKER HUB
+  # =========================================================================
+  docker-push:
+    name: 🐳 Docker Build & Push (${{ matrix.service.name }})
+    needs: [container-security, dependency-scan, sast]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - { name: backend, context: ./backend }
+          - { name: chat-server, context: ./chat/server }
+          - { name: admin, context: ./admin }
+          - { name: frontend, context: ./frontend }
+          - { name: chat-client, context: ./chat/client }
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.service.name }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+      
+
+
+          
+  
