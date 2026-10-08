@@ -19,7 +19,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main'
 
     runs-on: ubuntu-latest
-    environment: Production
+    environment: production
 
     steps:
       - name: Checkout code that exact commit CI tested
