@@ -124,28 +124,11 @@ jobs:
             sleep 10
           done
 
-          # Wait for cloud-init (user_data docker installation) to complete
-          echo "Waiting for cloud-init to finish installation..."
-          $SSH 'if command -v cloud-init >/dev/null 2>&1; then sudo cloud-init status --wait || true; fi'
+          # Wait for cloud-init (user_data docker.sh) to finish installing Docker
+          echo "Waiting for cloud-init (Docker installation) to complete..."
+          $SSH 'if command -v cloud-init >/dev/null 2>&1; then sudo cloud-init status --wait; fi'
 
-          # Wait for any lingering apt / dpkg locks to release
-          $SSH 'for i in $(seq 1 30); do
-            if ! sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
-              break
-            fi
-            echo "Waiting for apt lock to release ($i/30)..."
-            sleep 5
-          done'
-
-          # Ensure Docker and Docker Compose plugin are installed
-          $SSH 'if ! command -v docker >/dev/null 2>&1; then
-            curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
-            sudo sh /tmp/get-docker.sh
-            sudo apt-get update -y
-            sudo apt-get install -y docker-compose-plugin
-          fi'
-
-          # Ensure Docker service is running and user has permissions to docker socket
+          # Ensure docker socket permissions are active for the ubuntu user
           $SSH 'sudo systemctl enable --now docker && sudo usermod -aG docker ubuntu && sudo chmod 666 /var/run/docker.sock'
 
           $SSH 'mkdir -p ~/app'
