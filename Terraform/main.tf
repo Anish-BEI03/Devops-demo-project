@@ -1,6 +1,6 @@
 resource "aws_key_pair" "terraform-key" {
   key_name   = "terraform-key"
-  public_key = var.ssh_public_key != "" ? var.ssh_public_key : (fileexists("${path.module}/../terraform-key.pub") ? file("${path.module}/../terraform-key.pub") : "")
+  public_key = file("${path.module}/../terraform-key.pub")
 }
 
 resource "aws_instance" "web-server"{
