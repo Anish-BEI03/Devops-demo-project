@@ -227,9 +227,6 @@ jobs:
     name: 📊 SonarQube Code Quality & Security Scan
     needs: [test]
     runs-on: ubuntu-latest
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -243,14 +240,21 @@ jobs:
           name: backend-coverage
           path: backend/coverage
 
+      - name: Sanitize SonarQube URL
+        run: |
+          RAW_URL="${{ secrets.SONAR_HOST_URL }}"
+          CLEAN_URL=$(echo "$RAW_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'\'']//' -e 's/["'\'']$//' -e 's:/*$::')
+          if [ -z "$CLEAN_URL" ]; then
+            CLEAN_URL="https://cinnamon-wise-mango.ngrok-free.dev"
+          fi
+          echo "CLEAN_SONAR_HOST_URL=$CLEAN_URL" >> "$GITHUB_ENV"
+
       - name: Run SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ env.CLEAN_SONAR_HOST_URL }}
           SONAR_SCANNER_OPTS: "-Dhttp.agent=SonarScanner"
-
-
 
 
   # =========================================================================
