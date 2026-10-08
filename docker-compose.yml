@@ -141,10 +141,30 @@ services:
     networks:
       - citybites-network
 
+  # SonarQube Server (Local Code Quality & SAST Testing)
+  sonarqube:
+    image: sonarqube:community
+    container_name: citybites-sonarqube
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - citybites-network
+
 volumes:
   mongodb_data:
   backend_uploads:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
 
 networks:
   citybites-network:
     driver: bridge
+

@@ -61,3 +61,20 @@ cd client
 npm run dev
 cd server
 npm run server
+
+## SonarQube Setup
+
+### 1. Run SonarQube Locally (Docker)
+```bash
+# Start SonarQube container
+docker-compose up -d sonarqube
+
+# Access SonarQube web UI
+# URL: http://localhost:9000
+# Default Login: admin / admin (change password upon first login)
+```
+
+### 2. GitHub Actions Secrets for CI/CD Pipeline
+In your GitHub repository (**Settings > Secrets and variables > Actions > New repository secret**), add:
+- `SONAR_TOKEN`: User token generated in SonarQube (or SonarCloud) under **My Account > Security > Generate Token**.
+- `SONAR_HOST_URL`: The URL of your SonarQube server (e.g., `http://your-server-ip:9000` or `https://sonarcloud.io` if using SonarCloud).
