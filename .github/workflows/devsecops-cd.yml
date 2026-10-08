@@ -10,27 +10,30 @@ on:
     branches: [main]
     types: [completed]
 
+  workflow_dispatch:
+
 jobs:
   deploy:
     name: 🚀 Terraform + Docker Compose deploy
     if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
 
     runs-on: ubuntu-latest
     environment: production
 
     steps:
-      - name: Checkout code that exact commit CI tested
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set commit tag output
         id: tag
         run: |
-          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          HEAD_SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
           echo "tag=${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS Credentials
