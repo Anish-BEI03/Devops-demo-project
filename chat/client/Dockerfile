@@ -9,9 +9,8 @@ COPY package.json package-lock.json ./
 # Install all dependencies required to build
 RUN npm install
 
-# Copy application source code and environment file
+# Copy application source code
 COPY . .
-COPY .env* ./
 
 # Build production bundle
 RUN npm run build
