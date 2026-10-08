@@ -68,7 +68,7 @@ const Navbar = ({ setShowLogin }) => {
       <ul className={`navbar-menu ${mobileMenuOpen ? 'active' : ''}`}>
         <Link to='/' className={location.pathname === '/' && menu === "menu" ? "active" : ""} onClick={() => setMobileMenuOpen(false)}>Home</Link>
         <Link to='/menu' className={location.pathname === '/menu' ? "active" : ""} onClick={() => { setMenu("Menu"); setMobileMenuOpen(false); }}>Menu</Link>
-        <a href={import.meta.env.VITE_CHAT_URL || 'http://localhost:5172'} target='_blank' rel='noopener noreferrer' onClick={() => { setMenu("Chat"); setMobileMenuOpen(false); }} className={menu === "Chat" ? "active" : ""}>Chat</a>
+        <a href={import.meta.env.VITE_CHAT_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:5172` : "http://localhost:5172")} target='_blank' rel='noopener noreferrer' onClick={() => { setMenu("Chat"); setMobileMenuOpen(false); }} className={menu === "Chat" ? "active" : ""}>Chat</a>
         <Link to='/about' className={location.pathname === '/about' ? "active" : ""} onClick={() => setMobileMenuOpen(false)}>About</Link>
         <a href='#footer' onClick={() => { setMenu("Contact Us"); setMobileMenuOpen(false); }} className={menu === "Contact Us" ? "active" : ""} >Contact Us</a>
       </ul>

@@ -12,7 +12,7 @@ const FixedButtons = () => {
   return (
     <>
       {/* Chat Button */}
-      <a href="http://localhost:5172" target="_blank" rel="noopener noreferrer" className="chat-button">
+      <a href={import.meta.env.VITE_CHAT_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:5172` : "http://localhost:5172")} target="_blank" rel="noopener noreferrer" className="chat-button">
         <span className="chat-small">Let's</span>
         <span className="chat-large">Chat</span>
       </a>

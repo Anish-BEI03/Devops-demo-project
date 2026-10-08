@@ -11,7 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const App = () => {
 
-  const url = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000"
+  const url = import.meta.env.VITE_BACKEND_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:4000` : "http://localhost:4000")
 
   return (
     <div>
