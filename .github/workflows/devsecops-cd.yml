@@ -1,0 +1,148 @@
+# Runs only after successfully running DevSecOps CI Pipeline file push and git tag v* into docker hub
+# Run only on main branch
+# Triggered by workflow_run from DevSecOps CI Pipeline
+
+name: CD Deploy to AWS EC2 (Main)
+
+on:
+  workflow_run:
+    workflows: ["DevSecOps CI Pipeline"]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  deploy:
+    name: 🚀 Terraform + Docker Compose deploy
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+
+    runs-on: ubuntu-latest
+    environment: Production
+
+    steps:
+      - name: Checkout code that exact commit CI tested
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set commit tag output
+        id: tag
+        run: |
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          echo "tag=${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.14.6
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: ./Terraform
+        run: terraform init
+
+      - name: Terraform validate
+        working-directory: ./Terraform
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: ./Terraform
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform apply
+        id: tf
+        working-directory: ./Terraform
+        env:
+          TF_VAR_SSH_PUBLIC_KEY_PATH: ${{ secrets.SSH_PUBLIC_KEY_PATH }}
+        run: |
+          terraform apply -input=false -auto-approve tfplan
+          echo "ip=$(terraform output -raw webserver_public_ip)" >> "$GITHUB_OUTPUT"
+          echo "dns=$(terraform output -raw webserver_public_dns_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Write runtime .env
+        env:
+          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}
+          MONGO_INITDB_ROOT_USERNAME: ${{ vars.MONGO_INITDB_ROOT_USERNAME }}
+          MONGO_INITDB_DATABASE: ${{ vars.MONGO_INITDB_DATABASE }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          PUBLIC_IP: ${{ steps.tf.outputs.ip }}
+        run: |
+          mkdir -p deploy
+          umask 077
+          cat <<EOF > deploy/.env
+          DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
+          TAG=$TAG
+          PUBLIC_IP=$PUBLIC_IP
+          JWT_SECRET=$JWT_SECRET
+          STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY
+          MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME
+          MONGO_INITDB_DATABASE=$MONGO_INITDB_DATABASE
+          MONGO_INITDB_ROOT_PASSWORD=$MONGO_INITDB_ROOT_PASSWORD
+          EOF
+
+      - name: Deploy with Docker Compose over SSH
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          IP: ${{ steps.tf.outputs.ip }}
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          OPTS="-i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+          SSH="ssh $OPTS ubuntu@$IP"
+
+          # Wait for SSH to become ready
+          echo "Waiting for SSH to be ready on $IP..."
+          for i in $(seq 1 30); do
+            if $SSH true; then
+              echo "SSH connected successfully!"
+              break
+            fi
+            echo "Waiting for ssh ($i/30)..."
+            sleep 10
+          done
+
+          # Wait for cloud-init if active
+          $SSH 'command -v cloud-init >/dev/null && cloud-init status --wait || true'
+
+          # Ensure Docker and Docker Compose plugin are installed on the EC2 instance
+          $SSH 'if ! command -v docker >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y ca-certificates curl gnupg
+            sudo install -m 0755 -d /etc/apt/keyrings
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+            sudo chmod a+r /etc/apt/keyrings/docker.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            sudo apt-get update -y
+            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            sudo usermod -aG docker ubuntu
+          fi'
+
+          $SSH 'mkdir -p ~/app'
+          scp $OPTS deploy/docker-compose.yml deploy/.env ubuntu@$IP:~/app/
+
+          printf '%s' "$DOCKERHUB_TOKEN" | $SSH "docker login -u '$DOCKERHUB_USERNAME' --password-stdin"
+          $SSH 'cd ~/app && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f && docker compose ps'
+
+      - name: Smoke test
+        run: |
+          echo "Running smoke test on http://${{ steps.tf.outputs.ip }}/ ..."
+          curl -fsS --retry 10 --retry-delay 6 --retry-connrefused \
+            "http://${{ steps.tf.outputs.ip }}/" -o /dev/null
+          echo "Successfully deployed ${{ steps.tag.outputs.tag }} to http://${{ steps.tf.outputs.ip }}/"

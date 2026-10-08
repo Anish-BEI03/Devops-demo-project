@@ -1,0 +1,122 @@
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:latest
+    container_name: citybites-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-group_48}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-291381}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-citybites}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - devops-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API Server
+  backend:
+    image: ${DOCKERHUB_USERNAME}/backend:${TAG:-latest}
+    container_name: citybites-backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGO_INITDB_DATABASE}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - devops-network
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:4000/ || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Chat Server (Socket.io)
+  chat-server:
+    image: ${DOCKERHUB_USERNAME}/chat-server:${TAG:-latest}
+    container_name: citybites-chat-server
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGO_INITDB_DATABASE}?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - devops-network
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:5001/api/status || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Admin Panel (React/Vite)
+  admin:
+    image: ${DOCKERHUB_USERNAME}/admin:${TAG:-latest}
+    container_name: citybites-admin
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_BACKEND_URL: http://${PUBLIC_IP}:4000
+    depends_on:
+      - backend
+    networks:
+      - devops-network
+
+  # Frontend (React/Vite) - Customer App
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/frontend:${TAG:-latest}
+    container_name: citybites-frontend
+    restart: always
+    ports:
+      - "80:5174"
+      - "5174:5174"
+    environment:
+      VITE_BACKEND_URL: http://${PUBLIC_IP}:4000
+      VITE_CHAT_URL: http://${PUBLIC_IP}:5172
+    depends_on:
+      - backend
+    networks:
+      - devops-network
+
+  # Chat Client (React/Vite)
+  chat-client:
+    image: ${DOCKERHUB_USERNAME}/chat-client:${TAG:-latest}
+    container_name: citybites-chat-client
+    restart: always
+    ports:
+      - "5172:5172"
+    environment:
+      VITE_BACKEND_URL: http://${PUBLIC_IP}:5001
+    depends_on:
+      - chat-server
+    networks:
+      - devops-network
+
+volumes:
+  mongodb_data:
+  backend_uploads:
+
+networks:
+  devops-network:
+    driver: bridge
