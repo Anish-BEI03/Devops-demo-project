@@ -56,13 +56,15 @@ jobs:
 
       - name: Terraform plan
         working-directory: ./Terraform
+        env:
+          TF_VAR_ssh_public_key: ${{ secrets.AWS_SSH_KEY }}
         run: terraform plan -input=false -out=tfplan
 
       - name: Terraform apply
         id: tf
         working-directory: ./Terraform
         env:
-          TF_VAR_SSH_PUBLIC_KEY_PATH: ${{ secrets.SSH_PUBLIC_KEY_PATH }}
+          TF_VAR_ssh_public_key: ${{ secrets.AWS_SSH_KEY }}
         run: |
           terraform apply -input=false -auto-approve tfplan
           echo "ip=$(terraform output -raw webserver_public_ip)" >> "$GITHUB_OUTPUT"
