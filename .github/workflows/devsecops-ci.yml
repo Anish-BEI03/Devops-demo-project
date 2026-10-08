@@ -244,10 +244,18 @@ jobs:
           path: backend/coverage
 
       - name: Run SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' && env.SONAR_HOST_URL != '' }}
         uses: SonarSource/sonarqube-scan-action@v5
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Notice - SonarQube Local/Cloud Status
+        if: ${{ env.SONAR_TOKEN == '' || env.SONAR_HOST_URL == '' }}
+        run: |
+          echo "::notice title=SonarQube Scan Note::SONAR_TOKEN or SONAR_HOST_URL is not set in GitHub Secrets. For local Docker SonarQube, run scans locally via Docker Compose."
+
 
 
   # =========================================================================

@@ -157,6 +157,23 @@ services:
     networks:
       - citybites-network
 
+  # SonarQube Scanner CLI (for running local scans against SonarQube container)
+  sonar-scanner:
+    image: sonarsource/sonar-scanner-cli:latest
+    container_name: citybites-sonar-scanner
+    profiles:
+      - sonar-scan
+    volumes:
+      - .:/usr/src
+    environment:
+      - SONAR_HOST_URL=http://sonarqube:9000
+      - SONAR_TOKEN=${SONAR_TOKEN:-}
+    depends_on:
+      - sonarqube
+    networks:
+      - citybites-network
+
+
 volumes:
   mongodb_data:
   backend_uploads:
