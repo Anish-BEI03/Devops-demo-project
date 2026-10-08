@@ -247,15 +247,13 @@ jobs:
           if [ -z "$CLEAN_URL" ]; then
             CLEAN_URL="https://cinnamon-wise-mango.ngrok-free.dev"
           fi
-          echo "CLEAN_SONAR_HOST_URL=$CLEAN_URL" >> "$GITHUB_ENV"
+          echo "SONAR_HOST_URL=$CLEAN_URL" >> "$GITHUB_ENV"
 
       - name: Run SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ env.CLEAN_SONAR_HOST_URL }}
-          SONAR_SCANNER_OPTS: "-Dhttp.agent=SonarScanner"
-
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
 
   # =========================================================================
   # 7. DOCKERFILE LINTING & MULTI-CONTAINER SECURITY SCAN
