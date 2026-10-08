@@ -13,7 +13,7 @@ services:
     volumes:
       - mongodb_data:/data/db
     networks:
-      - citybites-network
+      - devops-network
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost/test --quiet
       interval: 10s
@@ -48,7 +48,7 @@ services:
       - /app/node_modules
       - backend_uploads:/app/uploads
     networks:
-      - citybites-network
+      - devops-network
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:4000/ || exit 1
       interval: 30s
@@ -76,7 +76,7 @@ services:
       - ./chat/server:/app
       - /app/node_modules
     networks:
-      - citybites-network
+      - devops-network
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:5001/api/status || exit 1
       interval: 30s
@@ -100,7 +100,7 @@ services:
       - ./admin:/app
       - /app/node_modules
     networks:
-      - citybites-network
+      - devops-network
 
   # Frontend (React/Vite) - Customer App
   frontend:
@@ -120,7 +120,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     networks:
-      - citybites-network
+      - devops-network
 
   # Chat Client (React/Vite)
   chat-client:
@@ -139,49 +139,15 @@ services:
       - ./chat/client:/app
       - /app/node_modules
     networks:
-      - citybites-network
+      - devops-network
 
-  # SonarQube Server (Local Code Quality & SAST Testing)
-  sonarqube:
-    image: sonarqube:community
-    container_name: citybites-sonarqube
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
-    volumes:
-      - sonarqube_data:/opt/sonarqube/data
-      - sonarqube_extensions:/opt/sonarqube/extensions
-      - sonarqube_logs:/opt/sonarqube/logs
-    networks:
-      - citybites-network
-
-  # SonarQube Scanner CLI (for running local scans against SonarQube container)
-  sonar-scanner:
-    image: sonarsource/sonar-scanner-cli:latest
-    container_name: citybites-sonar-scanner
-    profiles:
-      - sonar-scan
-    volumes:
-      - .:/usr/src
-    environment:
-      - SONAR_HOST_URL=http://sonarqube:9000
-      - SONAR_TOKEN=${SONAR_TOKEN:-}
-    depends_on:
-      - sonarqube
-    networks:
-      - citybites-network
 
 
 volumes:
   mongodb_data:
   backend_uploads:
-  sonarqube_data:
-  sonarqube_extensions:
-  sonarqube_logs:
 
 networks:
-  citybites-network:
+  devops-network:
     driver: bridge
 
