@@ -165,9 +165,21 @@ jobs:
 
           $SSH 'cd ~/app && docker compose up -d --remove-orphans && docker image prune -f && docker compose ps'
 
+          # Wait for application services to start responding on EC2
+          echo "Waiting for web application to start responding..."
+          $SSH 'for i in $(seq 1 20); do
+            if curl -s -f http://localhost:80/ >/dev/null 2>&1 || curl -s -f http://localhost:5174/ >/dev/null 2>&1; then
+              echo "Web container is up and responding locally!"
+              break
+            fi
+            echo "Waiting for frontend service ($i/20)..."
+            sleep 4
+          done || (echo "Container logs:" && cd ~/app && docker compose logs --tail 30)'
+
       - name: Smoke test
         run: |
-          echo "Running smoke test on http://${{ steps.tf.outputs.ip }}/ ..."
-          curl -fsS --retry 10 --retry-delay 6 --retry-connrefused \
-            "http://${{ steps.tf.outputs.ip }}/" -o /dev/null
-          echo "Successfully deployed ${{ steps.tag.outputs.tag }} to http://${{ steps.tf.outputs.ip }}/"
+          IP="${{ steps.tf.outputs.ip }}"
+          echo "Running smoke test on http://$IP/ ..."
+          curl -fsvS --retry 15 --retry-delay 5 --retry-connrefused --max-time 15 \
+            "http://$IP/" -o /dev/null
+          echo "Successfully verified deployment at http://$IP/"
