@@ -244,16 +244,11 @@ jobs:
           path: backend/coverage
 
       - name: Run SonarQube Scan
-        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: Notice - SonarQube Skipped
-        if: ${{ env.SONAR_TOKEN == '' }}
-        run: |
-          echo "::warning title=SonarQube Scan Skipped::SONAR_TOKEN secret is not set in repository secrets. Add SONAR_TOKEN and SONAR_HOST_URL to enable SonarQube analysis."
 
   # =========================================================================
   # 7. DOCKERFILE LINTING & MULTI-CONTAINER SECURITY SCAN
