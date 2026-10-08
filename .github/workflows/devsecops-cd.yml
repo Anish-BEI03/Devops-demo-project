@@ -86,6 +86,7 @@ jobs:
         run: |
           mkdir -p deploy
           umask 077
+          DOCKERHUB_USERNAME=$(echo "$DOCKERHUB_USERNAME" | tr '[:upper:]' '[:lower:]')
           cat <<EOF > deploy/.env
           DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
           TAG=$TAG
@@ -123,27 +124,46 @@ jobs:
             sleep 10
           done
 
-          # Wait for cloud-init if active
-          $SSH 'command -v cloud-init >/dev/null && cloud-init status --wait || true'
+          # Wait for cloud-init (user_data docker installation) to complete
+          echo "Waiting for cloud-init to finish installation..."
+          $SSH 'if command -v cloud-init >/dev/null 2>&1; then sudo cloud-init status --wait || true; fi'
 
-          # Ensure Docker and Docker Compose plugin are installed on the EC2 instance
+          # Wait for any lingering apt / dpkg locks to release
+          $SSH 'for i in $(seq 1 30); do
+            if ! sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+              break
+            fi
+            echo "Waiting for apt lock to release ($i/30)..."
+            sleep 5
+          done'
+
+          # Ensure Docker and Docker Compose plugin are installed
           $SSH 'if ! command -v docker >/dev/null 2>&1; then
+            curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+            sudo sh /tmp/get-docker.sh
             sudo apt-get update -y
-            sudo apt-get install -y ca-certificates curl gnupg
-            sudo install -m 0755 -d /etc/apt/keyrings
-            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-            sudo chmod a+r /etc/apt/keyrings/docker.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-            sudo apt-get update -y
-            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-            sudo usermod -aG docker ubuntu
+            sudo apt-get install -y docker-compose-plugin
           fi'
+
+          # Ensure Docker service is running and user has permissions to docker socket
+          $SSH 'sudo systemctl enable --now docker && sudo usermod -aG docker ubuntu && sudo chmod 666 /var/run/docker.sock'
 
           $SSH 'mkdir -p ~/app'
           scp $OPTS deploy/docker-compose.yml deploy/.env ubuntu@$IP:~/app/
 
-          printf '%s' "$DOCKERHUB_TOKEN" | $SSH "docker login -u '$DOCKERHUB_USERNAME' --password-stdin"
-          $SSH 'cd ~/app && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f && docker compose ps'
+          # Log in to Docker Hub if credentials provided
+          if [ -n "${DOCKERHUB_TOKEN:-}" ] && [ -n "${DOCKERHUB_USERNAME:-}" ]; then
+            printf '%s' "$DOCKERHUB_TOKEN" | $SSH "docker login -u '$DOCKERHUB_USERNAME' --password-stdin"
+          fi
+
+          # Pull images with fallback to latest tag if commit SHA tag is missing
+          $SSH 'cd ~/app && if ! docker compose pull; then
+            echo "Failed pulling with commit tag; falling back to :latest..."
+            sed -i "s/^TAG=.*/TAG=latest/" ~/app/.env
+            docker compose pull
+          fi'
+
+          $SSH 'cd ~/app && docker compose up -d --remove-orphans && docker image prune -f && docker compose ps'
 
       - name: Smoke test
         run: |
