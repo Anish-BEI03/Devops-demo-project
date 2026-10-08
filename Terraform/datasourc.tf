@@ -40,3 +40,7 @@ data "aws_subnet" "my-public-subnet" {
       environment="production"
     }
 }
+
+data "aws_key_pair" "terraform-key" {
+  key_name = "terraform-key"
+}
